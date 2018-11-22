@@ -1,0 +1,180 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+#Introduction
+
+Ce notebook explique comment a été réalisé l'analyse de l'expression des CT, dans les différentes tumeurs : 
+=> Etape 1, données TCGA FPKM-UQ
+==> Etape 2, binarisation 
+
+##Paths
+```{r}
+pathData = "C:/Users/marth/Desktop/These_Marthe/1_Bioinfo/180814_TCGA_All4"
+pathRes = "C:/Users/marth/Desktop/These_Marthe/1_Bioinfo/181115_TCGApostSeminaire"
+```
+
+##libariries
+```{r}
+library(TCGAbiolinks)
+
+library(DESeq2)
+
+library(psych)
+
+library(ggplot2)
+library(gridExtra)
+library(ComplexHeatmap)
+library(circlize)
+
+library(ggrepel)
+```
+
+##Données
+Les données d'expression normalisées sur les 4 types tumoraux + tissus normaux
+```{r}
+load(paste(pathData, "WS_All4_NormalizedDataOnly.Rdata", sep="/"))
+
+
+TSPS=read.table(file="C:/Users/marth/Desktop/These_Marthe/1_Bioinfo/documents/Data_TSPS_fromRousseau.txt", h=T, sep="\t")
+CT_Wang=read.table(file="C:/Users/marth/Desktop/These_Marthe/1_Bioinfo/documents/CT_list_Wang.txt", h=T, sep="\t", dec=",")
+CT_Database=read.table(file="C:/Users/marth/Desktop/These_Marthe/1_Bioinfo/documents/data_CTA_list_from_CT_database.txt", h=T, sep="\t", dec=",")
+#réunion des trois listes
+CT=data.frame(Description=c(as.character(TSPS$Gene_Symbol),
+                            as.character(CT_Wang$Description),
+                            as.character(CT_Database$Family_member)))
+```
+
+#Avec les données TPM
+
+###Installer TCGA biolinks
+from 
+devtools::install_github(repo = "BioinformaticsFMRP/TCGAbiolinks",dependencies = T)
+
+```{r}
+library(TCGAbiolinks)
+library(dplyr)
+library(DT)
+
+packageVersion("TCGAbiolinks")
+```
+
+##Télécharger les données (Merci Jérémy!)
+
+Lire ca : http://bioconductor.org/packages/release/bioc/vignettes/TCGAbiolinks/inst/doc/download_prepare.html
+
+c'est long (mais semble moins long que par GDCquery)
+
+
+####################################################################################################
+Ne pas exécuter impunément c'est super long !!
+####################################################################################################
+
+```{r}
+#Testé si le serveur GDC est dispo (parfois en maintenance)
+isServeOK()
+
+query <- GDCquery(project = "TCGA-LUSC",
+                  data.category = "Gene expression",
+                  data.type = "Gene expression quantification",
+                  platform = "Illumina HiSeq", 
+                  file.type  = "results",
+                 # barcode = "TCGA-BF-AAOU",
+                  experimental.strategy = "RNA-Seq",
+                  legacy = TRUE)
+
+
+                  
+GDCdownload(query, method = "api", files.per.chunk = 50) #download par petits paquets
+data_lusc <- GDCprepare(query) #Prépare l'env de travail : SummarizedExperiment à partir des data
+```
+
+
+o GDCquery: Searching in GDC database
+
+Genome of reference: hg19
+oo Accessing GDC. This might take a while...
+
+ooo Project: TCGA-BRCA
+
+oo Filtering results
+
+ooo By platform
+ooo By experimental.strategy
+ooo By data.type
+ooo By file.type
+
+oo Checking data
+
+ooo Check if there are duplicated cases
+ooo Check if there results for the query
+
+o Preparing output
+
+
+
+
+Downloading data for project TCGA-BRCA
+GDCdownload will download 1215 files. A total of 1.842027909 GB
+Downloading chunk 1 of 25 (50 files, size = 75.895848 MB) as Thu_Nov_15_13_43_46_2018_0.tar.gz
+Downloading: 30 MB     Downloading chunk 2 of 25 (50 files, size = 75.807034 MB) as Thu_Nov_15_13_43_46_2018_1.tar.gz
+Downloading: 30 MB     Downloading chunk 3 of 25 (50 files, size = 75.84429 MB) as Thu_Nov_15_13_43_46_2018_2.tar.gz
+Downloading: 30 MB     Downloading chunk 4 of 25 (50 files, size = 75.755553 MB) as Thu_Nov_15_13_43_46_2018_3.tar.gz
+Downloading: 30 MB     Downloading chunk 5 of 25 (50 files, size = 75.789367 MB) as Thu_Nov_15_13_43_46_2018_4.tar.gz
+Downloading: 30 MB     Downloading chunk 6 of 25 (50 files, size = 75.914264 MB) as Thu_Nov_15_13_43_46_2018_5.tar.gz
+Downloading: 31 MB     Downloading chunk 7 of 25 (50 files, size = 75.819492 MB) as Thu_Nov_15_13_43_46_2018_6.tar.gz
+Downloading: 30 MB     Downloading chunk 8 of 25 (50 files, size = 75.775712 MB) as Thu_Nov_15_13_43_46_2018_7.tar.gz
+Downloading: 30 MB     Downloading chunk 9 of 25 (50 files, size = 75.823065 MB) as Thu_Nov_15_13_43_46_2018_8.tar.gz
+Downloading: 30 MB     Downloading chunk 10 of 25 (50 files, size = 75.645818 MB) as Thu_Nov_15_13_43_46_2018_9.tar.gz
+Downloading: 30 MB     Downloading chunk 11 of 25 (50 files, size = 75.832547 MB) as Thu_Nov_15_13_43_46_2018_10.tar.gz
+Downloading: 30 MB     Downloading chunk 12 of 25 (50 files, size = 75.841293 MB) as Thu_Nov_15_13_43_46_2018_11.tar.gz
+Downloading: 30 MB     Downloading chunk 13 of 25 (50 files, size = 75.770528 MB) as Thu_Nov_15_13_43_46_2018_12.tar.gz
+Downloading: 30 MB     Downloading chunk 14 of 25 (50 files, size = 75.906224 MB) as Thu_Nov_15_13_43_46_2018_13.tar.gz
+Downloading: 30 MB     Downloading chunk 15 of 25 (50 files, size = 75.683933 MB) as Thu_Nov_15_13_43_46_2018_14.tar.gz
+Downloading: 30 MB     Downloading chunk 16 of 25 (50 files, size = 75.760049 MB) as Thu_Nov_15_13_43_46_2018_15.tar.gz
+Downloading: 30 MB     Downloading chunk 17 of 25 (50 files, size = 75.809091 MB) as Thu_Nov_15_13_43_46_2018_16.tar.gz
+Downloading: 30 MB     Downloading chunk 18 of 25 (50 files, size = 75.767376 MB) as Thu_Nov_15_13_43_46_2018_17.tar.gz
+Downloading: 30 MB     Downloading chunk 19 of 25 (50 files, size = 75.980514 MB) as Thu_Nov_15_13_43_46_2018_18.tar.gz
+Downloading: 31 MB     Downloading chunk 20 of 25 (50 files, size = 75.758622 MB) as Thu_Nov_15_13_43_46_2018_19.tar.gz
+Downloading: 30 MB     Downloading chunk 21 of 25 (50 files, size = 75.807803 MB) as Thu_Nov_15_13_43_46_2018_20.tar.gz
+Downloading: 30 MB     Downloading chunk 22 of 25 (50 files, size = 75.839067 MB) as Thu_Nov_15_13_43_46_2018_21.tar.gz
+Downloading: 30 MB     Downloading chunk 23 of 25 (50 files, size = 75.717816 MB) as Thu_Nov_15_13_43_46_2018_22.tar.gz
+Downloading: 30 MB     Downloading chunk 24 of 25 (50 files, size = 75.705523 MB) as Thu_Nov_15_13_43_46_2018_23.tar.gz
+Downloading: 30 MB     Downloading chunk 25 of 25 (15 files, size = 22.77708 MB) as Thu_Nov_15_13_43_46_2018_24.tar.gz
+Downloading: 9.2 MB
+
+ |========================================================================================| 100%Downloading genome informati
+on (try:0) Using: Homo sapiens genes (GRCh37.p13)
+Starting to add information to samples
+ => Add clinical information to samples
+Add FFPE information. More information at: 
+=> https://cancergenome.nih.gov/cancersselected/biospeccriteria 
+=> http://gdac.broadinstitute.org/runs/sampleReports/latest/FPPP_FFPE_Cases.html
+ => Adding subtype information to samples
+brca subtype information from:doi.org/10.1016/j.ccell.2018.03.014
+
+###Menage et sauve WS
+```{r}
+	#Pratique quand tu travailles sur des gros fichiers
+#Ex : regrouper des SummExp de différents organes / Projet TCGA
+#Entre ici la liste des fichiers que tu souhaites garder dans ton environnement
+KEEP=c('data_brca','data_coad','data_luad','data_lusc' )
+rm(list= ls()[!(ls() %in% KEEP )])
+#Puis Restart R manuellement
+
+```
+
+ENsuite on sauve un WS, et on se débarrasse des fichiers bruts très lourds, on ne gardera que ce WS
+
+
+
+
+
+
+
+
+
+
+
+
+
