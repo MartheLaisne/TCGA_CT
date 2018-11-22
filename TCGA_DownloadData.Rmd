@@ -4,9 +4,14 @@ output: html_notebook
 ---
 #Introduction
 
-Ce notebook explique comment a été réalisé l'analyse de l'expression des CT, dans les différentes tumeurs : 
-=> Etape 1, données TCGA FPKM-UQ
+Ce notebook explique comment a Ã©tÃ© rÃ©alisÃ© l'analyse de l'expression des CT, dans les diffÃ©rentes tumeurs : 
+=> Etape 1, donnÃ©es TCGA FPKM-UQ
 ==> Etape 2, binarisation 
+
+###Installer TCGA biolinks
+from 
+devtools::install_github(repo = "BioinformaticsFMRP/TCGAbiolinks",dependencies = T)
+
 
 ##Paths
 ```{r}
@@ -17,21 +22,14 @@ pathRes = "C:/Users/marth/Desktop/These_Marthe/1_Bioinfo/181115_TCGApostSeminair
 ##libariries
 ```{r}
 library(TCGAbiolinks)
+library(dplyr)
+library(DT)
 
-library(DESeq2)
-
-library(psych)
-
-library(ggplot2)
-library(gridExtra)
-library(ComplexHeatmap)
-library(circlize)
-
-library(ggrepel)
+packageVersion("TCGAbiolinks")
 ```
 
-##Données
-Les données d'expression normalisées sur les 4 types tumoraux + tissus normaux
+##DonnÃ©es
+Les donnÃ©es d'expression normalisÃ©es sur les 4 types tumoraux + tissus normaux
 ```{r}
 load(paste(pathData, "WS_All4_NormalizedDataOnly.Rdata", sep="/"))
 
@@ -39,27 +37,15 @@ load(paste(pathData, "WS_All4_NormalizedDataOnly.Rdata", sep="/"))
 TSPS=read.table(file="C:/Users/marth/Desktop/These_Marthe/1_Bioinfo/documents/Data_TSPS_fromRousseau.txt", h=T, sep="\t")
 CT_Wang=read.table(file="C:/Users/marth/Desktop/These_Marthe/1_Bioinfo/documents/CT_list_Wang.txt", h=T, sep="\t", dec=",")
 CT_Database=read.table(file="C:/Users/marth/Desktop/These_Marthe/1_Bioinfo/documents/data_CTA_list_from_CT_database.txt", h=T, sep="\t", dec=",")
-#réunion des trois listes
+#rÃ©union des trois listes
 CT=data.frame(Description=c(as.character(TSPS$Gene_Symbol),
                             as.character(CT_Wang$Description),
                             as.character(CT_Database$Family_member)))
 ```
 
-#Avec les données TPM
+#Avec les donnÃ©es FPKM-UQ
 
-###Installer TCGA biolinks
-from 
-devtools::install_github(repo = "BioinformaticsFMRP/TCGAbiolinks",dependencies = T)
-
-```{r}
-library(TCGAbiolinks)
-library(dplyr)
-library(DT)
-
-packageVersion("TCGAbiolinks")
-```
-
-##Télécharger les données (Merci Jérémy!)
+##TÃ©lÃ©charger les donnÃ©es (Merci JÃ©rÃ©my!)
 
 Lire ca : http://bioconductor.org/packages/release/bioc/vignettes/TCGAbiolinks/inst/doc/download_prepare.html
 
@@ -67,11 +53,11 @@ c'est long (mais semble moins long que par GDCquery)
 
 
 ####################################################################################################
-Ne pas exécuter impunément c'est super long !!
+Ne pas exÃ©cuter impunÃ©ment c'est super long !!
 ####################################################################################################
 
 ```{r}
-#Testé si le serveur GDC est dispo (parfois en maintenance)
+#TestÃ© si le serveur GDC est dispo (parfois en maintenance)
 isServeOK()
 
 query <- GDCquery(project = "TCGA-LUSC",
@@ -86,7 +72,7 @@ query <- GDCquery(project = "TCGA-LUSC",
 
                   
 GDCdownload(query, method = "api", files.per.chunk = 50) #download par petits paquets
-data_lusc <- GDCprepare(query) #Prépare l'env de travail : SummarizedExperiment à partir des data
+data_lusc <- GDCprepare(query) #PrÃ©pare l'env de travail : SummarizedExperiment Ã  partir des data
 ```
 
 
@@ -154,17 +140,18 @@ Add FFPE information. More information at:
 brca subtype information from:doi.org/10.1016/j.ccell.2018.03.014
 
 ###Menage et sauve WS
+
+ENsuite on sauve un WS, et on se dÃ©barrasse des fichiers bruts trÃ¨s lourds, on ne gardera que ce WS
+
 ```{r}
 	#Pratique quand tu travailles sur des gros fichiers
-#Ex : regrouper des SummExp de différents organes / Projet TCGA
+#Ex : regrouper des SummExp de diffÃ©rents organes / Projet TCGA
 #Entre ici la liste des fichiers que tu souhaites garder dans ton environnement
 KEEP=c('data_brca','data_coad','data_luad','data_lusc' )
 rm(list= ls()[!(ls() %in% KEEP )])
 #Puis Restart R manuellement
 
 ```
-
-ENsuite on sauve un WS, et on se débarrasse des fichiers bruts très lourds, on ne gardera que ce WS
 
 
 
